@@ -1,0 +1,130 @@
+{% extends 'notes/base.html' %}
+
+{% block title %}Activitats{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2 class="text-center">Activitats i Notes</h2>
+        {% for module, activities in grades_by_module.items %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3 class="card-title">{{ activities.0.activity.get_module_display }}</h3>
+                    <div class="progress">
+                        {% with total=activities|length done=activities|dictsort:"grade" %}
+                        {% for item in activities %}
+                            {% if item.grade %}
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ 100|divisibleby:total }}%;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
+                            {% else %}
+                                <div class="progress-bar bg-danger" role="progressbar" style="width: {{ 100|divisibleby:total }}%;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
+                            {% endif %}
+                        {% endfor %}
+                        {% endwith %}
+                    </div>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for item in activities %}
+                        <li class="list-group-item">
+                            {{ item.activity.name }} ({{ item.activity.code }})
+                            <form id="form-{{ item.activity.id }}" class="form-inline float-right" action="{% url 'update_grade' %}" method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="activity_id" value="{{ item.activity.id }}">
+                                <input type="hidden" name="grade_id" value="{% if item.grade %}{{ item.grade.id }}{% else %}null{% endif %}">
+                                <div class="form-group mr-2">
+                                    <input type="text" id="grade-input-{{ item.activity.id }}" name="grade" class="form-control" value="{{ item.grade.grade }}" disabled>
+                                </div>
+                                <button type="button" class="btn btn-primary" onclick="openRubricModal({{ item.activity.id }}, {% if item.grade %}{{ item.grade.id }}{% else %}null{% endif %})">Introduir</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Rubric Modal -->
+<div class="modal fade" id="rubricModal" tabindex="-1" role="dialog" aria-labelledby="rubricModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rubricModalLabel">Avaluació de Rúbrica</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="rubricForm" enctype="multipart/form-data">
+                    <input type="hidden" id="activityId">
+                    <input type="hidden" id="gradeId">
+                    <div class="form-group">
+                        <label for="ontime">S'ha entregat la tasca a temps?</label>
+                        <select class="form-control" id="ontime" required>
+                            <option value="0">A temps</option>
+                            <option value="2">Una mica tard (-2)</option>
+                            <option value="4">Molt tard (-4)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quality">Valora la qualitat de la tasca</label>
+                        <select class="form-control" id="quality" required>
+                            <option value="0">Perfecta</option>
+                            <option value="2">Es podria millorar (-2)</option>
+                            <option value="4">Deficient (-4)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="screenshot">Captura de pantalla</label>
+                        <input type="file" class="form-control" id="screenshot" name="screenshot">
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="submitRubricForm()">Calcula</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openRubricModal(activityId, gradeId) {
+        document.getElementById('activityId').value = activityId;
+        document.getElementById('gradeId').value = gradeId;
+        $('#rubricModal').modal('show');
+    }
+
+    function submitRubricForm() {
+        const activityId = document.getElementById('activityId').value;
+        const gradeId = document.getElementById('gradeId').value;
+        const ontime = parseInt(document.getElementById('ontime').value);
+        const quality = parseInt(document.getElementById('quality').value);
+        const grade = 10 - (ontime + quality);
+        
+        const form = document.getElementById(`form-${activityId}`);
+        const gradeInput = document.getElementById(`grade-input-${activityId}`);
+        
+        gradeInput.value = grade;
+
+        const rubricForm = document.getElementById('rubricForm');
+        const formData = new FormData(rubricForm);
+        formData.append('grade', grade);
+        formData.append('activity_id', activityId);
+        formData.append('grade_id', gradeId);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        }).then(response => {
+            if (response.ok) {
+                $('#rubricModal').modal('hide');
+                rubricForm.reset(); // Vaciar el formulario del popup
+            } else {
+                console.error('Failed to submit form');
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+        });
+    }
+</script>
+{% endblock %}
