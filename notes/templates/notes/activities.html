@@ -5,7 +5,7 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <h2 class="text-center">Activitats i Notes</h2>
+        <h2 class="text-center">Activitats i Notes per al cicle {{ cycle }}</h2>
         {% for module, activities in grades_by_module.items %}
             <div class="card mb-3">
                 <div class="card-header">

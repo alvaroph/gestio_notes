@@ -24,7 +24,7 @@ class ActivitiesView(LoginRequiredMixin, View):
 
     def get(self, request):
         user = request.user
-        activities = Activity.objects.all()
+        activities = Activity.objects.filter(cycle=user.cycle)
         grades = Grade.objects.filter(user=user)
 
         grades_by_module = {}
@@ -33,7 +33,10 @@ class ActivitiesView(LoginRequiredMixin, View):
                 {'activity': activity, 'grade': grades.filter(activity=activity).first()}
             )
 
-        return render(request, 'notes/activities.html', {'grades_by_module': grades_by_module})
+        return render(request, 'notes/activities.html', {
+            'grades_by_module': grades_by_module,
+            'cycle': user.cycle
+        })
 
 def update_grade(request):
     if request.method == 'POST':
